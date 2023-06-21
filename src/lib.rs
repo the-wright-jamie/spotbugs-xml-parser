@@ -117,11 +117,11 @@ fn save_processed_report(results: &ProcessingResults, report_file_name: &str) ->
     let current_dir = env::current_dir()?;
     let file_path = current_dir.join(report_file_name);
     let mut file = File::create(file_path)?;
-    let content = format!("{0}
-{1}
-{2}
-{3}
-{4}", results.total_bugs, results.high_bugs, results.medium_bugs, results.low_bugs, results.security_bugs);
+    let content = format!("{0} total bugs
+{1} high danger bugs
+{2} medium danger bugs
+{3} low danger bugs
+{4} security related bugs", results.total_bugs, results.high_bugs, results.medium_bugs, results.low_bugs, results.security_bugs);
     file.write_all(content.as_bytes())?;
 
     Ok(())
