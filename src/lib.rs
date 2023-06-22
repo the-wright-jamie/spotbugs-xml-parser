@@ -1,7 +1,7 @@
 use std::{error::Error, fs::File, io::{BufReader, self, Write, Read}, env};
 
 use clap::{arg, Parser};
-use xml::{reader::{EventReader, XmlEvent}};
+use xml::{reader::{EventReader, XmlEvent}, attribute::{OwnedAttribute}, name::OwnedName};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
@@ -24,11 +24,11 @@ pub struct Config {
 }
 
 struct ProcessingResults {
-    total_bugs: usize,
-    high_bugs: usize,
-    medium_bugs: usize,
-    low_bugs: usize,
-    security_bugs: usize,
+    total_bugs: i32,
+    high_bugs: i32,
+    medium_bugs: i32,
+    low_bugs: i32,
+    security_bugs: i32,
 }
 
 fn directory_check(report_file_name: &str) {
@@ -52,34 +52,12 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     let file = BufReader::new(File::open(config.scan_results_path)?);
 
     let parser = EventReader::new(file);
-    let mut bug_instances = 0;
-    let mut high_bug_instances = 0;
-    let mut medium_bug_instances = 0;
-    let mut low_bug_instances = 0;
-    let mut security_bug_instances = 0;
-    for e in parser {
-        match e { 
-            Ok(XmlEvent::StartElement { name, attributes, .. }) => {
-                if name.to_string() == "BugInstance" {
-                    bug_instances += 1;
-                    for attribute in attributes {
-                        if attribute.name.to_string() == "priority" {
-                            if attribute.value == "1" {
-                                 high_bug_instances += 1
-                            }
-                            if attribute.value == "2" {
-                                 medium_bug_instances += 1
-                            }
-                            if attribute.value == "3" {
-                                 low_bug_instances += 1
-                            }
-                        }
-                        if attribute.value == "SECURITY" {
-                            security_bug_instances += 1;
-                        }
-                    }
-                }
-            }
+
+    let mut bug_array: [i32; 5] = [0, 0, 0, 0, 0];
+
+    for result in parser {
+        match result { 
+            Ok(XmlEvent::StartElement { name, attributes, .. }) => handle_element(&name, &attributes, &mut bug_array),
             Err(e) => {
                 eprintln!("Error: {e}");
                 break;
@@ -88,7 +66,13 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
         }
     }
 
-    let results = ProcessingResults { total_bugs: (bug_instances), high_bugs: (high_bug_instances), medium_bugs: (medium_bug_instances), low_bugs: (low_bug_instances), security_bugs: (security_bug_instances) };
+    let results = ProcessingResults { 
+        total_bugs: (bug_array[0]), 
+        high_bugs: (bug_array[1]), 
+        medium_bugs: (bug_array[2]), 
+        low_bugs: (bug_array[3]), 
+        security_bugs: (bug_array[4]) 
+    };
 
     if config.generate_report {
         print!("✍️ Writing report...");
@@ -111,6 +95,29 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     }
 
     Ok(())
+}
+
+fn handle_element(name: &OwnedName, attributes: &Vec<OwnedAttribute>, bug_array: &mut [i32; 5]) {
+    if name.to_string() == "BugInstance" {
+        bug_array[0] += 1;
+        for attribute in attributes {
+            handle_attribute(attribute, bug_array);
+        }
+    }
+}
+
+fn handle_attribute(attribute: &OwnedAttribute, bug_array: &mut [i32; 5]) {
+    if attribute.name.to_string() == "priority" {
+        match attribute.value.as_str() {
+            "1" => bug_array[1] += 1,
+            "2" => bug_array[2] += 1,
+            "3" => bug_array[3] += 1,
+            _ => {}
+        }
+    }
+    if attribute.value == "SECURITY" {
+        bug_array[4] += 1;
+    }
 }
 
 fn save_processed_report(results: &ProcessingResults, report_file_name: &str) -> Result<(), Box<dyn Error>> {
