@@ -1,7 +1,7 @@
 use std::{error::Error, fs::File, io::{BufReader, self, Write, Read}, env};
 
 use clap::{arg, Parser};
-use xml::{reader::{EventReader, XmlEvent}, attribute::{OwnedAttribute}, name::OwnedName};
+use xml::{reader::{EventReader, XmlEvent}, attribute::OwnedAttribute, name::OwnedName};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
